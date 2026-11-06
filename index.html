@@ -1165,7 +1165,7 @@ async function createRoom(){
     Object.assign(R,{host:true,code,me:id,conns:{},players:[{id,name,key:PKEY,team:"red",role:"spymaster",voice:false,mic:true}],chat:[],joined:true});NET.seen={};startHB();
     G.series={red:0,blue:0};loadBoard(makeCode(true));G.names={red:S.red,blue:S.blue};
     addLog(`👑 ${esc(name)} فتح الغرفة`);enterRoom();broadcast();startTimer();
-    toast("الغرفة جاهزة! أرسل الرابط لأصحابك 🎉","good");
+    toast("الغرفة جاهزة! أرسل الرابط وارجع للصفحة بسرعة 🎉","good");
   });
   peer.on("connection",c=>{c.on("data",m=>hostHandle(m,c));c.on("close",()=>{if(R.conns[c.peer]===c)dropPlayer(c.peer)});c.on("error",()=>{if(R.conns[c.peer]===c)dropPlayer(c.peer)})});
   peer.on("call",onCall);
@@ -1190,7 +1190,7 @@ async function resumeHost(h,tries=0){
   peer.on("error",e=>{if(e.type==="unavailable-id"&&!R.joined&&tries<12){killPeer();setTimeout(()=>resumeHost(h,tries+1),2500)}else if(e.type==="unavailable-id"&&!R.joined){clearHost();lobbyMsg("ما قدرنا نرجّع الغرفة — افتح غرفة جديدة.");netShow("")}else netErr(e)});
 }
 async function joinRoom(code){
-  code=String(code||$("#joinCode").value).trim().toUpperCase();
+  code=String(code||$("#joinCode").value).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).toUpperCase().replace(/[^A-Z0-9]/g,"");NET.wait=0;
   if(code.length!==5)return toast("رمز الغرفة ٥ خانات","bad");
   const name=askName();if(!name)return;
   lobbyMsg("⏳ جارٍ الدخول للغرفة…");
@@ -1205,18 +1205,25 @@ function guestPeer(code,name,again){
   peer.on("call",onCall);
   peer.on("disconnected",()=>sigReconnect(peer));
   peer.on("error",e=>{
-    if(e.type==="peer-unavailable"){if(!R.joined){lobbyMsg("الغرفة غير موجودة أو انتهت 🤷");killPeer()}else{NET.reco=false}}
+    if(e.type==="peer-unavailable"){if(!R.joined)waitHost(code,name);else{NET.reco=false}}
     else if(R.joined){NET.reco=false}else netErr(e)});
 }
 function guestConnect(code,name,again){
   const peer=R.peer;if(!peer||peer.destroyed)return;
   const c=peer.connect(PFX+code,{reliable:true,serialization:"json"});R.hc=c;
-  const to=setTimeout(()=>{if(R.hc!==c)return;if(!R.joined){lobbyMsg("لم نصل للغرفة. تأكد من الرمز وأن المضيف ما زال متصلًا.");killPeer()}else{NET.reco=false;try{c.close()}catch(e){}}},12000);
+  const to=setTimeout(()=>{if(R.hc!==c)return;if(!R.joined){waitHost(code,name)}else{NET.reco=false;try{c.close()}catch(e){}}},12000);
   c.on("open",()=>{c.send({t:"hello",name,key:PKEY,voice:R.voice,mic:R.mic})});
   c.on("data",m=>{if(R.hc!==c)return;clearTimeout(to);NET.lastHost=Date.now();
     if(NET.reco){NET.reco=false;NET.retry=0;netShow("رجع الاتصال ✅","good");SFX.join()}onHostMsg(m)});
   c.on("close",()=>{clearTimeout(to);if(R.hc===c&&R.joined&&!NET.bye)guestReconnect()});
   c.on("error",()=>{});
+}
+// host may be briefly offline (e.g. switched to WhatsApp to share the code) — keep trying ~75s
+function waitHost(code,name){
+  if(R.joined)return;NET.wait=(NET.wait||0)+1;
+  if(NET.wait>25){NET.wait=0;lobbyMsg("ما لقينا الغرفة 🤷 تأكد من الرمز، وخلّ المضيف يرجع للعبة ويبقي صفحتها مفتوحة.");killPeer();return}
+  lobbyMsg("⏳ ننتظر المضيف… خلّه يرجع لصفحة اللعبة ("+ar(NET.wait)+")");
+  setTimeout(()=>{if(R.joined||!R.peer||R.peer.destroyed)return;guestConnect(code,name,false)},3000);
 }
 function guestReconnect(){
   if(!R.joined||R.host||NET.bye)return;
