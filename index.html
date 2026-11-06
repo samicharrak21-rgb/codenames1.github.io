@@ -261,6 +261,26 @@ textarea.inp{width:100%;min-height:80px;resize:vertical}
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
 .winbox{text-align:center}.winbox .trophy{font-size:4rem;line-height:1}
 .share{white-space:pre;font-family:monospace;background:var(--surface-2);border-radius:12px;padding:12px;direction:ltr;text-align:center;line-height:1.3;margin:10px 0}
+
+/* ===== v4: online status, reactions, richer motion ===== */
+.pl{transition:opacity .3s,transform .3s var(--ease)}.pl.off{opacity:.45;filter:grayscale(.7)}.pl.off .nm:after{content:" 💤";}
+.pl.join{animation:plIn .5s var(--ease)}@keyframes plIn{from{opacity:0;transform:translateX(-14px) scale(.9)}}
+#net{position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:260;padding:6px 16px;border-radius:999px;font-weight:800;font-size:.85rem;background:var(--surface);border:2px solid var(--stroke);box-shadow:0 3px 0 var(--shadow-c);display:none;align-items:center;gap:8px}
+#net.show{display:flex;animation:tin .35s var(--ease)}#net.bad{background:var(--red-soft);border-color:var(--red)}#net.good{background:var(--teal-soft);border-color:var(--teal)}
+#net i{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:pulse .8s infinite}#net.good i{background:var(--teal);animation:none}#net.bad i{background:var(--red)}
+.reacts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.reacts button{font-size:1.45rem;line-height:1;width:44px;height:44px;border-radius:14px;border:2px solid var(--line);background:var(--surface-2);cursor:pointer;transition:transform .2s var(--ease),background .2s}
+.reacts button:hover{transform:translateY(-4px) scale(1.15) rotate(-6deg);background:var(--gold-soft)}.reacts button:active{transform:scale(.85)}
+.femo{position:fixed;bottom:-40px;z-index:290;font-size:2.4rem;pointer-events:none;animation:femo 2.6s cubic-bezier(.2,.7,.3,1) forwards;text-align:center;filter:drop-shadow(0 3px 2px rgba(0,0,0,.25))}
+.femo small{display:block;font:800 .7rem "Tajawal";background:var(--ink);color:var(--bg);border-radius:8px;padding:1px 6px;margin-top:2px;white-space:nowrap}
+@keyframes femo{0%{transform:translateY(0) scale(.4);opacity:0}12%{opacity:1;transform:translateY(-18vh) scale(1.25)}60%{transform:translateY(-55vh) translateX(var(--dx)) scale(1) rotate(var(--rot))}100%{transform:translateY(-85vh) translateX(calc(var(--dx)*1.6)) scale(.8);opacity:0}}
+.burst{position:fixed;z-index:295;pointer-events:none;font-size:1.6rem;animation:burst .9s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes burst{0%{transform:translate(-50%,-50%) scale(.3);opacity:1}100%{transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) scale(1.1) rotate(var(--rot));opacity:0}}
+.card.shake{animation:shake .55s}@keyframes shake{20%,60%{translate:-6px 0}40%,80%{translate:6px 0}}
+.card.glow .k{animation:glow 1.2s ease}@keyframes glow{40%{box-shadow:0 0 0 6px var(--gold),0 0 34px var(--gold)}}
+.em,.tile .em{display:inline-block;transition:transform .4s var(--ease)}.tile:hover .em{transform:scale(1.2) rotate(-8deg)}
+.chat p{animation:tin .3s var(--ease)}
+@media (prefers-reduced-motion:reduce){.femo,.burst{display:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* ===== POLISH LAYER v4: depth, motion, light ===== */
@@ -826,6 +846,9 @@ function pickCore(i){
 /* effects for a reveal — used locally and by online clients */
 function fx(r){
   if(!r)return;SFX.flip();
+  setTimeout(()=>{const el=document.querySelectorAll("#board .card")[r.i];if(!el)return;
+    const E=r.t==="assassin"?["💀","☠️","💥","🖤"]:r.t===r.team?["✨","⭐","✅","🎯"]:r.t==="neutral"?["😐","🫥","💨"]:["❌","😬","💔","🙈"];
+    burstAt(el,E);el.classList.remove("shake","glow");void el.offsetWidth;el.classList.add(r.t===r.team?"glow":"shake");setTimeout(()=>el.classList.remove("shake","glow"),1300)},380);
   const rival=isSolo()&&r.team==="blue";
   if(r.t==="assassin"){setTimeout(SFX.boom,150);big("☠ القاتل!");vib([80,60,220]);toast(pick(EX.assassin),"bad")}
   else if(r.t===r.team){setTimeout(SFX.good,120);toast(rival?pick(EX.rivalGood):pick(EX.good),rival?"":"good");vib(30)}
@@ -1065,6 +1088,7 @@ function buildSide(m){
     <div class="row" id="hostCtl" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-act="shuffle">🔀 خلط الفرق</button><button class="btn btn-ghost btn-sm" data-act="settings">⚙️ إعدادات الغرفة</button></div>
     <button class="btn btn-ghost btn-sm btn-block" data-act="leave" style="margin-top:10px">🚪 مغادرة الغرفة</button></div>
     <div class="panel"><h3>🎧 المكالمة الصوتية</h3><div class="voice" id="voiceBox"></div><p class="sub" id="voiceNote" style="margin-top:8px"></p></div>
+    <div class="panel"><h3>🎭 تفاعل</h3><div class="reacts">${REACTS.map(e=>`<button type="button" data-act="react" data-e="${e}" aria-label="${e}">${e}</button>`).join("")}</div></div>
     <div class="panel"><h3>💬 الدردشة</h3><div class="chat" id="chat"></div><form class="row" id="chatForm"><input class="inp" id="chatIn" maxlength="200" placeholder="اكتب رسالة…" autocomplete="off"><button class="btn btn-blue btn-sm">إرسال</button></form></div>`+LOG_PANEL;
   $("#side").innerHTML=h;
   if(m==="online"){renderChat();renderRoom()}
@@ -1079,6 +1103,49 @@ function updateSide(){
 
 /* ================= ONLINE ROOM ================= */
 const PFX="asmaa-harakia-v3-";
+const REACTS=["😂","🔥","👏","😱","🤔","💀","🎉","😡","🫡","❤️"];
+const PCFG={debug:0,config:{iceServers:[
+  {urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302","stun:stun.cloudflare.com:3478"]},
+  {urls:"turn:openrelay.metered.ca:80",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turn:openrelay.metered.ca:443",username:"openrelayproject",credential:"openrelayproject"},
+  {urls:"turn:openrelay.metered.ca:443?transport=tcp",username:"openrelayproject",credential:"openrelayproject"}]}};
+const PKEY=(()=>{try{let k=localStorage.getItem("cn-pk");if(!k){k=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("cn-pk",k)}return k}catch(e){return Math.random().toString(36).slice(2)}})();
+const NET={seen:{},hb:null,lastHost:0,retry:0,retryT:null,graceT:{},reco:false};
+function netShow(t,cls=""){let n=document.getElementById("net");if(!n){n=document.createElement("div");n.id="net";document.body.appendChild(n)}
+  if(!t){n.className="";return}n.className="show "+cls;n.innerHTML="<i></i>"+t;if(cls==="good")setTimeout(()=>{if(n.classList.contains("good"))n.className=""},2200)}
+function saveHost(){if(!R.host||!R.joined)return;try{localStorage.setItem("cn-host",JSON.stringify({code:R.code,ts:Date.now(),g:snap(),start:G.start,players:R.players,chat:R.chat}))}catch(e){}}
+function savedHost(code){try{const h=JSON.parse(localStorage.getItem("cn-host")||"null");if(h&&h.code===code&&Date.now()-h.ts<45*60e3)return h}catch(e){}return null}
+function clearHost(){try{localStorage.removeItem("cn-host")}catch(e){}}
+function sigReconnect(peer){ // keep signaling alive (host must stay reachable)
+  if(!peer||peer.destroyed||!peer.disconnected)return;
+  try{peer.reconnect()}catch(e){}
+  setTimeout(()=>sigReconnect(peer),4000);
+}
+function startHB(){clearInterval(NET.hb);NET.hb=setInterval(hbTick,4000)}
+function stopHB(){clearInterval(NET.hb);NET.hb=null}
+function hbTick(){
+  if(!R.joined)return;
+  const now=Date.now();
+  if(R.host){
+    sendAll({t:"ping"});saveHost();
+    for(const id in R.conns){if(now-(NET.seen[id]||now)>16000){try{R.conns[id].close()}catch(e){}dropPlayer(id)}}
+    if(R.peer&&R.peer.disconnected)sigReconnect(R.peer);
+  }else{
+    const c=R.hc;
+    if(!NET.reco&&(!c||!c.open||now-NET.lastHost>14000))guestReconnect();
+    else if(c&&c.open)try{c.send({t:"pong"})}catch(e){}
+  }
+}
+addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&R.joined){if(R.peer&&R.peer.disconnected)sigReconnect(R.peer);hbTick()}});
+addEventListener("online",()=>{if(R.joined)hbTick()});
+function floatEmoji(e,name){const d=document.createElement("div");d.className="femo";d.style.left=(8+Math.random()*84)+"vw";
+  d.style.setProperty("--dx",(Math.random()*80-40)+"px");d.style.setProperty("--rot",(Math.random()*40-20)+"deg");
+  d.innerHTML=e+(name?`<small>${esc(name)}</small>`:"");document.body.appendChild(d);setTimeout(()=>d.remove(),2700)}
+function burstAt(el,emos){if(!el)return;const b=el.getBoundingClientRect(),cx=b.left+b.width/2,cy=b.top+b.height/2;
+  for(let k=0;k<9;k++){const d=document.createElement("div");d.className="burst";d.textContent=emos[k%emos.length];d.style.left=cx+"px";d.style.top=cy+"px";
+    const a=Math.PI*2*k/9+Math.random()*.5,r=60+Math.random()*60;d.style.setProperty("--x",Math.cos(a)*r+"px");d.style.setProperty("--y",Math.sin(a)*r+"px");d.style.setProperty("--rot",(Math.random()*120-60)+"deg");
+    document.body.appendChild(d);setTimeout(()=>d.remove(),950)}}
+let reactAt=0;
 const R={peer:null,host:false,code:"",me:"",conns:{},hc:null,players:[],chat:[],stream:null,calls:{},aud:{},an:{},voice:false,mic:true,deaf:false,joined:false};
 const myP=()=>R.players.find(p=>p.id===R.me);
 const isHostId=id=>id===PFX+R.code;
@@ -1093,17 +1160,34 @@ async function createRoom(){
   lobbyMsg("⏳ جارٍ فتح الغرفة…");
   try{await loadPeer()}catch(e){return lobbyMsg("تعذّر تحميل خدمة الاتصال. تأكد من الإنترنت.")}
   killPeer();
-  const code=genCode(),peer=new Peer(PFX+code,{debug:0});R.peer=peer;
+  const code=genCode(),peer=new Peer(PFX+code,PCFG);R.peer=peer;
   peer.on("open",id=>{
-    Object.assign(R,{host:true,code,me:id,conns:{},players:[{id,name,team:"red",role:"spymaster",voice:false,mic:true}],chat:[],joined:true});
+    Object.assign(R,{host:true,code,me:id,conns:{},players:[{id,name,key:PKEY,team:"red",role:"spymaster",voice:false,mic:true}],chat:[],joined:true});NET.seen={};startHB();
     G.series={red:0,blue:0};loadBoard(makeCode(true));G.names={red:S.red,blue:S.blue};
     addLog(`👑 ${esc(name)} فتح الغرفة`);enterRoom();broadcast();startTimer();
     toast("الغرفة جاهزة! أرسل الرابط لأصحابك 🎉","good");
   });
-  peer.on("connection",c=>{c.on("data",m=>hostHandle(m,c));c.on("close",()=>dropPlayer(c.peer));c.on("error",()=>dropPlayer(c.peer))});
+  peer.on("connection",c=>{c.on("data",m=>hostHandle(m,c));c.on("close",()=>{if(R.conns[c.peer]===c)dropPlayer(c.peer)});c.on("error",()=>{if(R.conns[c.peer]===c)dropPlayer(c.peer)})});
   peer.on("call",onCall);
-  peer.on("disconnected",()=>{try{peer.reconnect()}catch(e){}});
+  peer.on("disconnected",()=>sigReconnect(peer));
   peer.on("error",e=>{if(e.type==="unavailable-id"&&!R.joined){killPeer();createRoom()}else netErr(e)});
+}
+async function resumeHost(h,tries=0){
+  lobbyMsg("⏳ نرجّع غرفتك…");netShow("جارٍ استرجاع الغرفة…");
+  try{await loadPeer()}catch(e){return lobbyMsg("تعذّر تحميل خدمة الاتصال. تأكد من الإنترنت.")}
+  killPeer();const code=h.code,peer=new Peer(PFX+code,PCFG);R.peer=peer;
+  peer.on("open",id=>{
+    const me=h.players.find(p=>p.id===id)||{id,name:S.name||"المضيف",key:PKEY,team:"red",role:"spymaster"};me.voice=false;me.mic=true;
+    Object.assign(R,{host:true,code,me:id,conns:{},players:h.players.map(p=>p.id===id?me:{...p,off:true,voice:false}),chat:h.chat||[],joined:true});
+    if(!R.players.includes(me))R.players.unshift(me);
+    const g=h.g;loadBoard(g.code,g.start);Object.assign(G,{rev:g.rev,turn:g.turn,phase:g.phase,clue:g.clue,left:g.left,over:g.over,winner:g.winner,why:g.why,log:g.log||[],turns:g.turns,last:g.last,votes:{},series:g.series,names:g.names});
+    NET.seen={};R.players.forEach(p=>{if(p.off)graceDrop(p.id,40000)});startHB();
+    addLog("🔁 المضيف رجع للغرفة");enterRoom();broadcast();startTimer();netShow("رجعت الغرفة ✅","good");toast("رجّعنا غرفتك 🎉","good");
+  });
+  peer.on("connection",c=>{c.on("data",m=>hostHandle(m,c));c.on("close",()=>{if(R.conns[c.peer]===c)dropPlayer(c.peer)});c.on("error",()=>{if(R.conns[c.peer]===c)dropPlayer(c.peer)})});
+  peer.on("call",onCall);
+  peer.on("disconnected",()=>sigReconnect(peer));
+  peer.on("error",e=>{if(e.type==="unavailable-id"&&!R.joined&&tries<12){killPeer();setTimeout(()=>resumeHost(h,tries+1),2500)}else if(e.type==="unavailable-id"&&!R.joined){clearHost();lobbyMsg("ما قدرنا نرجّع الغرفة — افتح غرفة جديدة.");netShow("")}else netErr(e)});
 }
 async function joinRoom(code){
   code=String(code||$("#joinCode").value).trim().toUpperCase();
@@ -1112,25 +1196,50 @@ async function joinRoom(code){
   lobbyMsg("⏳ جارٍ الدخول للغرفة…");
   try{await loadPeer()}catch(e){return lobbyMsg("تعذّر تحميل خدمة الاتصال. تأكد من الإنترنت.")}
   killPeer();
-  const peer=new Peer({debug:0});R.peer=peer;
-  peer.on("open",id=>{
-    Object.assign(R,{host:false,code,me:id,joined:false,players:[],chat:[]});
-    const c=peer.connect(PFX+code,{reliable:true});R.hc=c;
-    const to=setTimeout(()=>{if(!R.joined){lobbyMsg("لم نصل للغرفة. تأكد من الرمز وأن المضيف ما زال متصلًا.");killPeer()}},15000);
-    c.on("open",()=>c.send({t:"hello",name}));
-    c.on("data",m=>{clearTimeout(to);onHostMsg(m)});
-    c.on("close",()=>{clearTimeout(to);if(R.joined)roomClosed()});
-  });
+  Object.assign(R,{host:false,code,joined:false,players:[],chat:[]});
+  guestPeer(code,name,false);
+}
+function guestPeer(code,name,again){
+  killPeer();const peer=new Peer(PCFG);R.peer=peer;
+  peer.on("open",id=>{R.me=id;guestConnect(code,name,again)});
   peer.on("call",onCall);
-  peer.on("disconnected",()=>{try{peer.reconnect()}catch(e){}});
-  peer.on("error",e=>{if(e.type==="peer-unavailable"&&!R.joined){lobbyMsg("الغرفة غير موجودة أو انتهت 🤷");killPeer()}else netErr(e)});
+  peer.on("disconnected",()=>sigReconnect(peer));
+  peer.on("error",e=>{
+    if(e.type==="peer-unavailable"){if(!R.joined){lobbyMsg("الغرفة غير موجودة أو انتهت 🤷");killPeer()}else{NET.reco=false}}
+    else if(R.joined){NET.reco=false}else netErr(e)});
+}
+function guestConnect(code,name,again){
+  const peer=R.peer;if(!peer||peer.destroyed)return;
+  const c=peer.connect(PFX+code,{reliable:true,serialization:"json"});R.hc=c;
+  const to=setTimeout(()=>{if(R.hc!==c)return;if(!R.joined){lobbyMsg("لم نصل للغرفة. تأكد من الرمز وأن المضيف ما زال متصلًا.");killPeer()}else{NET.reco=false;try{c.close()}catch(e){}}},12000);
+  c.on("open",()=>{c.send({t:"hello",name,key:PKEY,voice:R.voice,mic:R.mic})});
+  c.on("data",m=>{if(R.hc!==c)return;clearTimeout(to);NET.lastHost=Date.now();
+    if(NET.reco){NET.reco=false;NET.retry=0;netShow("رجع الاتصال ✅","good");SFX.join()}onHostMsg(m)});
+  c.on("close",()=>{clearTimeout(to);if(R.hc===c&&R.joined&&!NET.bye)guestReconnect()});
+  c.on("error",()=>{});
+}
+function guestReconnect(){
+  if(!R.joined||R.host||NET.bye)return;
+  if(NET.retry>=40){roomClosed();return}  // ~3 min of trying
+  NET.reco=true;NET.retry++;NET.lastHost=Date.now();
+  netShow("🔌 انقطع الاتصال — نحاول نرجّعك… ("+ar(NET.retry)+")","bad");
+  clearTimeout(NET.retryT);
+  NET.retryT=setTimeout(()=>{
+    const name=S.name||"لاعب",p=R.peer;
+    if(!p||p.destroyed||NET.retry%3===0)guestPeer(R.code,name,true); // fresh peer every 3rd try
+    else if(p.disconnected){sigReconnect(p);setTimeout(()=>guestConnect(R.code,name,true),1500)}
+    else guestConnect(R.code,name,true);
+  },Math.min(1000*NET.retry,5000));
 }
 function enterRoom(){
+  if(!R.host){NET.lastHost=Date.now();startHB()}
   $("#lobby").hidden=true;$("#playMain").hidden=false;
   history.replaceState(null,"","#/room/"+R.code);
   buildBoard();buildSide("online");render();
 }
 function leaveRoom(){
+  if(R.host){sendAll({t:"bye"});clearHost()}
+  NET.bye=false;NET.reco=false;NET.retry=0;clearTimeout(NET.retryT);stopHB();Object.values(NET.graceT).forEach(clearTimeout);NET.graceT={};netShow("");
   voiceLeave();stopTimer();
   try{if(!R.host&&R.hc)R.hc.close()}catch(e){}
   killPeer();
@@ -1140,27 +1249,36 @@ function leaveRoom(){
   showLobby();
 }
 function roomClosed(){toast("انتهت الغرفة — المضيف خرج 🚪","bad");leaveRoom();lobbyMsg("انتهت الغرفة لأن المضيف خرج.")}
-function showLobby(){$("#lobby").hidden=false;$("#playMain").hidden=true;$("#myName").value=S.name||""}
+function showLobby(){netShow("");$("#lobby").hidden=false;$("#playMain").hidden=true;$("#myName").value=S.name||""}
 
 /* --- host side --- */
 function snap(){return{code:G.code,start:G.start,rev:G.rev,turn:G.turn,phase:G.phase,clue:G.clue,left:G.left,over:G.over,winner:G.winner,why:G.why,log:G.log.slice(0,30),turns:G.turns,last:G.last,votes:G.votes,series:G.series,names:G.names}}
 function sendAll(m){for(const id in R.conns){try{const c=R.conns[id];if(c.open)c.send(m)}catch(e){}}}
-function broadcast(){if(!R.host)return;sendAll({t:"state",g:snap(),players:R.players});afterState()}
+function broadcast(){if(!R.host)return;sendAll({t:"state",g:snap(),players:R.players.map(({rx,...p})=>p)});saveHost();afterState()}
 function afterState(){render();renderRoom();syncCalls();applyMic()}
 let lastTick=-1;
 function roomTick(){if(R.host&&G.tLeft!==lastTick){lastTick=G.tLeft;sendAll({t:"tick",s:G.tLeft})}}
 const count=t=>R.players.filter(p=>p.team===t).length;
 function hostHandle(m,c){
   if(!m||typeof m!=="object")return;
-  const from=c.peer;let p=R.players.find(x=>x.id===from);
+  const from=c.peer;NET.seen[from]=Date.now();let p=R.players.find(x=>x.id===from);
+  if(m.t==="pong")return;
   if(m.t==="hello"){
-    if(p)return;
+    const key=String(m.key||"").slice(0,40);
+    if(!p&&key)p=R.players.find(x=>x.key===key&&x.id!==R.me);
+    if(p){ // returning player: rebind seat
+      const old=p.id;if(old!==from){if(R.conns[old]){const oc=R.conns[old];delete R.conns[old];try{oc.close()}catch(e){}}closeCall(old);if(G.votes[old]!=null){G.votes[from]=G.votes[old];delete G.votes[old]}p.id=from}
+      R.conns[from]=c;clearTimeout(NET.graceT[old]);delete NET.graceT[old];
+      const was=p.off;p.off=false;p.voice=!!m.voice;p.mic=m.mic!==false;
+      if(was){addLog(`🔁 ${esc(p.name)} رجع للغرفة`);toast(`${p.name} رجع 🔁`)}
+      c.send({t:"chatAll",chat:R.chat});broadcast();if(G.tLeft)sendAll({t:"tick",s:G.tLeft});return;
+    }
     if(R.players.length>=16){c.send({t:"full"});return}
     R.conns[from]=c;
     const name=String(m.name||"لاعب").trim().slice(0,16)||"لاعب";
     const team=count("red")<=count("blue")?"red":"blue";
     const role=R.players.some(x=>x.team===team&&x.role==="spymaster")?"agent":"spymaster";
-    R.players.push({id:from,name,team,role,voice:false,mic:true});
+    R.players.push({id:from,name,key,team,role,voice:false,mic:true,fresh:Date.now()});
     addLog(`👋 ${esc(name)} دخل الغرفة`);SFX.join();toast(`${name} دخل الغرفة 👋`);
     c.send({t:"chatAll",chat:R.chat});broadcast();return;
   }
@@ -1182,6 +1300,7 @@ function doHost(m,p){
     case"end":{if(G.over||G.phase!=="guess"||p.team!==G.turn||p.role!=="agent")return;
       addLog(`${esc(p.name)} أنهى دور ${esc(tn(G.turn))} ✋`,G.turn);endCore();startTimer();break}
     case"voice":p.voice=!!m.voice;p.mic=!!m.mic;break;
+    case"react":{if(!REACTS.includes(m.e))return;const now=Date.now();if(now-(p.rx||0)<700)return;p.rx=now;sendAll({t:"react",e:m.e,n:p.name});floatEmoji(m.e,p.name);return}
     case"chat":{const text=String(m.text||"").trim().slice(0,200);if(!text)return;const msg={n:p.name,team:p.team,text};R.chat.push(msg);if(R.chat.length>60)R.chat.shift();sendAll({t:"chat",msg});showChat(msg);return}
     default:return;
   }
@@ -1197,14 +1316,17 @@ function hostShuffle(){
   addLog("🔀 المضيف خلط الفرق");broadcast();
 }
 function dropPlayer(id){
-  const p=R.players.find(x=>x.id===id);delete R.conns[id];closeCall(id);
-  if(!p)return;R.players=R.players.filter(x=>x.id!==id);delete G.votes[id];
-  addLog(`🚶 ${esc(p.name)} خرج من الغرفة`);toast(`${p.name} خرج`);broadcast();
+  const p=R.players.find(x=>x.id===id);delete R.conns[id];delete NET.seen[id];closeCall(id);
+  if(!p||p.off)return;p.off=true;p.voice=false;delete G.votes[id];
+  broadcast();graceDrop(id,60000);
 }
+function graceDrop(id,ms){clearTimeout(NET.graceT[id]);NET.graceT[id]=setTimeout(()=>{delete NET.graceT[id];
+  const p=R.players.find(x=>x.id===id);if(!p||!p.off)return;
+  R.players=R.players.filter(x=>x!==p);addLog(`🚶 ${esc(p.name)} خرج من الغرفة`);toast(`${p.name} خرج 👋`);broadcast()},ms)}
 function roomAct(t,payload={}){
   if(!R.joined)return;
   if(R.host){const me=myP();if(me)doHost({t,...payload},me)}
-  else try{R.hc.send({t,...payload})}catch(e){toast("انقطع الاتصال بالغرفة","bad")}
+  else{if(R.hc&&R.hc.open)try{R.hc.send({t,...payload});return}catch(e){}toast("الاتصال يرجع… حاول بعد ثواني 🔌","bad");guestReconnect()}
 }
 
 /* --- guest side --- */
@@ -1224,6 +1346,9 @@ function onHostMsg(m){
     case"chat":R.chat.push(m.msg);showChat(m.msg);break;
     case"chatAll":R.chat=m.chat||[];renderChat();break;
     case"full":lobbyMsg("الغرفة ممتلئة 😅");killPeer();break;
+    case"ping":try{R.hc.send({t:"pong"})}catch(e){}break;
+    case"react":if(m.n!==(myP()||{}).name)floatEmoji(m.e,m.n);break;
+    case"bye":NET.bye=true;roomClosed();NET.bye=false;break;
   }
 }
 
@@ -1233,7 +1358,7 @@ function renderRoom(){
   $("#roomCode").textContent=R.code;$("#pCount").textContent=ar(R.players.length)+" لاعب";
   $("#roomCols").innerHTML=["red","blue"].map(t=>{
     const ps=R.players.filter(p=>p.team===t).sort((a,b)=>(a.role==="spymaster"?-1:1)-(b.role==="spymaster"?-1:1));
-    return`<div class="col ${t}"><h4><span>${esc(tn(t))}</span><span>${ar(ps.length)}</span></h4>${ps.map(p=>`<div class="pl${p.id===R.me?" me":""}" data-id="${esc(p.id)}"><span>${p.role==="spymaster"?"👁️":"🕵️"}</span><span class="nm">${esc(p.name)}${isHostId(p.id)?" 👑":""}</span><span class="mic${p.voice&&p.mic?" on":""}">${p.voice?(p.mic?"🎙️":"🔇"):""}</span></div>`).join("")||`<p class="sub">فاضي</p>`}</div>`}).join("");
+    return`<div class="col ${t}"><h4><span>${esc(tn(t))}</span><span>${ar(ps.length)}</span></h4>${ps.map(p=>`<div class="pl${p.id===R.me?" me":""}${p.off?" off":""}${p.fresh&&Date.now()-p.fresh<1500?" join":""}" data-id="${esc(p.id)}"><span>${p.role==="spymaster"?"👁️":"🕵️"}</span><span class="nm">${esc(p.name)}${isHostId(p.id)?" 👑":""}</span><span class="mic${p.voice&&p.mic?" on":""}">${p.voice?(p.mic?"🎙️":"🔇"):""}</span></div>`).join("")||`<p class="sub">فاضي</p>`}</div>`}).join("");
   const me=myP();
   $$('[data-act="seat"]').forEach(b=>{const on=me&&me.team===b.dataset.team&&me.role===b.dataset.role;b.disabled=!!on;b.style.outline=on?"3px solid var(--gold)":""});
   $("#hostCtl").hidden=!R.host;
@@ -1362,7 +1487,8 @@ function route(){
   else if(a==="room"&&b){showPage("play");const code=b.toUpperCase();
     if(R.joined&&R.code===code){setMode("online");return}
     setMode("online");$("#joinCode").value=code;
-    if(S.name&&!R.joined)joinRoom(code);else{lobbyMsg("اكتب اسمك واضغط «ادخل الغرفة» 👇");$("#myName").focus()}}
+    const hs=!R.joined&&savedHost(code);
+    if(hs)resumeHost(hs);else if(S.name&&!R.joined)joinRoom(code);else{lobbyMsg("اكتب اسمك واضغط «ادخل الغرفة» 👇");$("#myName").focus()}}
   else if(a==="key"&&b){showPage("key");renderKey(b,c)}
   else{if(G.mode==="online"&&R.joined){if(!confirm("تبي تغادر الغرفة؟")){history.replaceState(null,"","#/room/"+R.code);return}leaveRoom()}
     stopTimer();showPage("home");if(a&&document.getElementById(a))setTimeout(()=>document.getElementById(a).scrollIntoView({behavior:"smooth"}),30)}
@@ -1398,6 +1524,7 @@ document.addEventListener("click",e=>{
     case"voice":R.voice?voiceLeave():voiceJoin();break;
     case"mic":toggleMic();break;
     case"deaf":toggleDeaf();break;
+    case"react":{const now=Date.now();if(now-reactAt<700)break;reactAt=now;const e=a.dataset.e;if(R.host)roomAct("react",{e});else{floatEmoji(e,(myP()||{}).name);roomAct("react",{e})}break}
   }
 });
 document.addEventListener("submit",e=>{
